@@ -1,26 +1,24 @@
 import streamlit as st
-import pandas as pd
+from PIL import Image
+import io
 
 # Function to show the main page
 def main_page():
     st.markdown('<p class="title-text">Cosmetic Compass</p>', unsafe_allow_html=True)
     st.markdown('<p class="subtitle-text">Meet Cosmetic Compass, your guide to transparent, healthy skincare.</p>', unsafe_allow_html=True)
 
-    # File uploader for CSV files
-    st.markdown('<br><p class="file-uploader-prompt">Please choose a CSV image file to get safety information about your product:</p>', unsafe_allow_html=True)
-    uploaded_file = st.file_uploader("", type="csv")
+    # File uploader for image files
+    st.markdown('<br><p class="file-uploader-prompt">Please choose an image file (JPG, PNG, JPEG) to get safety information about your product:</p>', unsafe_allow_html=True)
+    uploaded_file = st.file_uploader("", type=["jpg", "jpeg", "png"])
 
     if uploaded_file is not None:
-        # Read the CSV file
-        data = pd.read_csv(uploaded_file)
+        # Open and display the image
+        image = Image.open(uploaded_file)
+        st.image(image, caption='Uploaded Image', use_column_width=True)
 
-        # Display the dataframe
-        st.subheader("Data Preview")
-        st.dataframe(data)
-
-        # Show basic statistics
-        st.subheader("Statistics")
-        st.write(data.describe())
+        # Process the image (this is where you would integrate AI model analysis)
+        st.subheader("Analysis Result")
+        st.write("Your image has been successfully uploaded. Here is where the safety analysis results would appear.")
 
 # Function to show the About page
 def about_page():
@@ -44,7 +42,6 @@ def mission_page():
 st.markdown(
     """
     <style>
-
     /* Import Google Font */
     @import url('https://fonts.googleapis.com/css2?family=Playwrite+GB+S:ital,wght@0,100..400;1,100..400&display=swap');
     @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Playwrite+GB+S:ital,wght@0,100..400;1,100..400&display=swap');
@@ -100,18 +97,17 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+# Background image style
 bg_img = """
 <style>
 [data-testid="stAppViewContainer"] {
 background-image: url("https://png.pngtree.com/background/20210710/original/pngtree-high-end-atmosphere-simple-wind-makeup-area-banner-picture-image_1056850.jpg");
-background-size: cover; /* Change to cover for full width */
-background-position: center; /* Center the image */
-background-repeat: no-repeat; /* Prevent tiling of the image */
+background-size: cover;
+background-position: center;
+background-repeat: no-repeat;
 }
 [data-testid="stHeader"] {
 background-color: rgba(0, 0, 0, 0);
-}
-[data-testid="stToolbar"] {
 }
 </style>
 """
@@ -121,15 +117,15 @@ st.markdown(bg_img, unsafe_allow_html=True)
 # Sidebar navigation
 st.sidebar.markdown('<p class="sidebar-info">Navigation</p>', unsafe_allow_html=True)
 if st.sidebar.button('About'):
-    st.session_state.page = "about"  # Set the session state to 'about'
+    st.session_state.page = "about"
 elif st.sidebar.button('Our Mission'):
-    st.session_state.page = "mission"  # Set the session state to 'mission'
+    st.session_state.page = "mission"
 else:
-    st.session_state.page = "main"  # Default to main page
+    st.session_state.page = "main"
 
 # Determine which page to display
 if 'page' not in st.session_state:
-    st.session_state.page = "main"  # Initialize session state
+    st.session_state.page = "main"
 
 if st.session_state.page == "main":
     main_page()
