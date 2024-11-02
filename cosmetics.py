@@ -1,6 +1,126 @@
 import streamlit as st
+from bs4 import BeautifulSoup
+from flask import Flask, request, jsonify
+from werkzeug.utils import secure_filename
+from google.cloud import vision
 from PIL import Image
-import io
+import io, os, re, requests
+
+# Initialize the Flask app
+app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = './uploads'
+app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg'}
+
+# Ensure the uploads folder exists
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'])
+
+# Initialize the Google Cloud Vision client
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'service_account.json'
+vision_client = vision.ImageAnnotatorClient()
+
+# Helper function to check if the file is allowed
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+def clean_text(text):
+    """Removes unwanted characters such as newlines and Unicode characters."""
+    text = text.replace("\n", " ")  # Replace newlines with spaces
+    text = re.sub(r'[^\x00-\x7F]+', '', text)  # Remove non-ASCII characters
+    return text.strip()
+
+def recognize_product(file_path):
+    """Uses Google Cloud Vision API to identify the product in the image."""
+    with open(file_path, 'rb') as image_file:
+        content = image_file.read()
+    image = vision.Image(content=content)
+
+    # Label detection for general characteristics
+    label_response = vision_client.label_detection(image=image)
+    labels = [clean_text(label.description) for label in label_response.label_annotations]
+
+    # Object detection to identify specific objects
+    object_response = vision_client.object_localization(image=image)
+
+    # Filter objects to ignore "hand" or similar irrelevant items
+    relevant_objects = []
+    for obj in object_response.localized_object_annotations:
+        if obj.name.lower() not in ['hand', 'person', 'finger']:  # Exclude hand-related objects
+            relevant_objects.append((clean_text(obj.name), obj.bounding_poly))
+
+    # Sort objects by area (largest to smallest), assuming the largest is the product
+    relevant_objects.sort(key=lambda x: (x[1].normalized_vertices[2].x - x[1].normalized_vertices[0].x) *
+                                      (x[1].normalized_vertices[2].y - x[1].normalized_vertices[0].y), 
+                          reverse=True)
+    # Only keep the name of the most prominent object
+    detected_objects = [relevant_objects[0][0]] if relevant_objects else []
+
+    # Text detection to look for explicit product names
+    text_response = vision_client.text_detection(image=image)
+    detected_text = ""
+    if text_response.text_annotations:
+        detected_text = clean_text(text_response.text_annotations[0].description)
+
+    # Use color detection if available
+    dominant_colors = []
+    image_properties = vision_client.image_properties(image=image)
+    if image_properties.image_properties_annotation:
+        for color in image_properties.image_properties_annotation.dominant_colors.colors:
+            rgb_color = (color.color.red, color.color.green, color.color.blue)
+            dominant_colors.append(f"RGB{rgb_color}")
+
+    # Construct a descriptive search query
+    visual_features = " ".join(labels + detected_objects + dominant_colors)
+    search_query = f"{detected_text} {visual_features}".strip()
+    product_link = f"https://www.google.com/search?q={search_query.replace(' ', '+')}"
+
+    # Fetch the first result from the Google search
+    product_name = fetch_product_name_from_google(search_query)
+
+    # Build response with cleaned text
+    return {
+        'message': "Is this the product you're showing?",
+        'detected_labels': labels,
+        'detected_objects': detected_objects,
+        'dominant_colors': dominant_colors,
+        'detected_text': detected_text,
+        'product_name': product_name or "Product Name Unknown",
+        'product_link': product_link,
+        'confirmation_prompt': f"Is this the product you're showing? {detected_text or 'Unknown Product'}",
+        'link': product_link
+    }
+
+def fetch_product_name_from_google(query):
+    """Fetch the most relevant product name from the Google search results, ignoring ads."""
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'}
+
+    response = requests.get(f"https://www.google.com/search?q={query.replace(' ', '+')}", headers=headers)
+
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, 'html.parser')
+        # Gather all relevant search results
+        product_names = []
+        for h3 in soup.find_all('h3'):
+            parent = h3.find_parent('a')
+            # Skip sponsored links
+            if parent and 'href' in parent.attrs and not '/aclk' in parent.attrs['href']:
+                product_names.append(clean_text(h3.get_text()))
+
+        # Attempt to find the most relevant product name based on the detected text
+        if product_names:
+            detected_text = query  # Use the original query for matching
+            best_match = max(product_names, key=lambda name: similarity_score(detected_text, name), default=None)
+            return best_match or "Product Name Unknown"
+    
+    return None
+
+def similarity_score(detected_text, product_name):
+    """Calculate a simple similarity score between the detected text and a product name."""
+    detected_words = set(detected_text.lower().split())
+    product_words = set(product_name.lower().split())
+    # Calculate the intersection of detected and product words
+    return len(detected_words.intersection(product_words))
 
 # Function to show the main page
 def main_page():
@@ -9,16 +129,17 @@ def main_page():
 
     # File uploader for image files
     st.markdown('<br><p class="file-uploader-prompt">Please choose an image file (JPG, PNG, JPEG) to get safety information about your product:</p>', unsafe_allow_html=True)
-    uploaded_file = st.file_uploader("", type=["jpg", "jpeg", "png"])
+    uploaded_file = st.file_uploader("Upload your image...", type=["jpg", "jpeg", "png"])
 
     if uploaded_file is not None:
-        # Open and display the image
-        image = Image.open(uploaded_file)
-        st.image(image, caption='Uploaded Image', use_column_width=True)
+        # Save the uploaded file
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(uploaded_file.name))
+        with open(file_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
 
-        # Process the image (this is where you would integrate AI model analysis)
-        st.subheader("Analysis Result")
-        st.write("Your image has been successfully uploaded. Here is where the safety analysis results would appear.")
+        # Call the Google Vision API to recognize the product
+        product_info = recognize_product(file_path)
+        st.write(product_info)
 
 # Function to show the About page
 def about_page():
