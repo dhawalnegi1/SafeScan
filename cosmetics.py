@@ -14,59 +14,6 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = './uploads'
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg'}
 
-def get_db():
-    client = MongoClient('mongodb://localhost:27017/')
-    return client['cosmetic_compass']
-
-bcrypt = Bcrypt(app)
-
-def register_user(username, password):
-    db = get_db()
-    users_collection = db['users']
-    
-    # Check if the username already exists
-    if users_collection.find_one({'username': username}):
-        return {'success': False, 'message': 'Username already exists'}
-    
-    # Hash the password
-    hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
-    
-    # Insert the new user into the database
-    users_collection.insert_one({'username': username, 'password': hashed_password})
-    return {'success': True, 'message': 'User registered successfully'}
-
-def login_user(username, password):
-    db = get_db()
-    users_collection = db['users']
-    
-    # Find the user by username
-    user = users_collection.find_one({'username': username})
-    if user and bcrypt.check_password_hash(user['password'], password):
-        return {'success': True, 'message': 'Login successful'}
-    return {'success': False, 'message': 'Invalid username or password'}
-
-def register_page():
-    st.markdown('<p class="sidebar-info">Register</p>', unsafe_allow_html=True)
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-    if st.button("Register"):
-        result = register_user(username, password)
-        st.write(result['message'])
-        if result['success']:
-            st.session_state.page = "login"
-
-def login_page():
-    st.markdown('<p class="sidebar-info">Login</p>', unsafe_allow_html=True)
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-    if st.button("Login"):
-        result = login_user(username, password)
-        st.write(result['message'])
-        if result['success']:
-            st.session_state.logged_in = True
-            st.session_state.username = username
-            st.session_state.page = "main"
-
 # Ensure the uploads folder exists
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
