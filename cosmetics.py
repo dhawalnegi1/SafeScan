@@ -239,17 +239,13 @@ background-color: rgba(0, 0, 0, 0);
 st.markdown(bg_img, unsafe_allow_html=True)
 
 # Sidebar navigation
-st.sidebar.markdown('<p class="sidebar-info">Navigation</p>', unsafe_allow_html=True)
-if st.sidebar.button('Login', key='login_button'):
-    st.session_state.page = "login"
-elif st.sidebar.button('Register', key='register_button'):
-    st.session_state.page = "register"
-elif st.sidebar.button('About', key='about_button'):
-    st.session_state.page = "about"
-elif st.sidebar.button('Our Mission', key='mission_button'):
-    st.session_state.page = "mission"
-else:
+st.sidebar.markdown('<p class="section-title">Navigation</p>', unsafe_allow_html=True)
+if st.sidebar.button('Main Page'):
     st.session_state.page = "main"
+if st.sidebar.button('About'):
+    st.session_state.page = "about"
+if st.sidebar.button('Our Mission'):
+    st.session_state.page = "mission"
 
 # Determine which page to display
 if 'page' not in st.session_state:
