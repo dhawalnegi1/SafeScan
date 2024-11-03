@@ -6,7 +6,8 @@ SafeScan is a platform that empowers users to make informed decisions about beau
 
 - https://safescan.tech
 - https://isitsafeforme.tech
-
+- https://youtu.be/mxxPxOLVXRQ
+  
 Try out the any of the product image from the sample directory in the repository!
 
 ## Features
