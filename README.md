@@ -4,8 +4,8 @@ SafeScan is an innovative platform that empowers users to make informed decision
 
 ## Links
 
-- [SafeScan](https://safescan.tech)
-- [Is It Safe For Me](https://isitsafeforme.tech)
+- https://safescan.tech
+- https://isitsafeforme.tech
 
 ## Features
 
