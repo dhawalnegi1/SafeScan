@@ -2,6 +2,11 @@
 
 SafeScan is an innovative platform that empowers users to make informed decisions about beauty products, medications, and packaged foods. By simply uploading a photo of any product label, our advanced AI technology analyzes the ingredients for toxic substances, harmful allergens, and potential side effects, delivering a detailed safety rating and risk report.
 
+## Links
+
+- [SafeScan](https://safescan.tech)
+- [Is It Safe For Me](https://isitsafeforme.tech)
+
 ## Features
 
 - **Product Recognition**: Uses Google Cloud Vision API to identify products from images.
